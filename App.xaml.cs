@@ -35,7 +35,7 @@ namespace EmotionsGame
             {
                 if (rootFrame.Content == null)
                 {
-                    rootFrame.Navigate(typeof(MainPage), e.Arguments);
+                    rootFrame.Navigate(typeof(StartPage), e.Arguments);
                 }
 
                 Window.Current.Activate();

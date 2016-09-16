@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Devices.Enumeration;
@@ -14,7 +13,7 @@ using Windows.UI.Xaml.Controls;
 
 namespace EmotionsGame
 {
-    public class VideoCapture
+    public class VideoCapture : IDisposable
     {
         public VideoCapture()
         {
@@ -22,6 +21,11 @@ namespace EmotionsGame
         }
 
         public event Action<IReadOnlyCollection<BitmapBounds>> FacesDetected;
+
+        public void Dispose()
+        {
+            _capture.Dispose();
+        }
 
         public VideoEncodingProperties VideoProperties { get; private set; }
 
@@ -64,7 +68,7 @@ namespace EmotionsGame
 
         private void HandleFaceDetector(FaceDetectionEffect sender, FaceDetectedEventArgs args)
         {
-            if (FacesDetected != null)
+            if (FacesDetected != null && args.ResultFrame.DetectedFaces.Count > 0)
             {
                 List<BitmapBounds> result = new List<BitmapBounds>();
                 foreach (DetectedFace face in args.ResultFrame.DetectedFaces)

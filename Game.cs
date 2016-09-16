@@ -12,6 +12,7 @@ using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Shapes;
+using System.Linq;
 
 namespace EmotionsGame
 {
@@ -28,13 +29,24 @@ namespace EmotionsGame
             _detectEmotionsTimer.Interval = Config.EmotionsDetectionInterval;
             _detectEmotionsTimer.Tick += OnDetectEmotionsTimerTick;
 
+            _gameRoundTimer = new DispatcherTimer();
+            _gameRoundTimer.Interval = Config.GameRoundInterval;
+            _gameRoundTimer.Tick += OnGameRoundTimerTick;
+
             _emotionService = new EmotionServiceClient(Config.EmotionServiceKey);
         }
 
-        public async void Run()
+        public event Action<PlayerResult> GameFinished;
+
+        public async void Run(EmotionVariants trackedEmotion)
         {
+            _trackedEmotion = trackedEmotion;
+            _isGameFinished = false;
+            _highScore = null;
+
             await _capture.Initialize(_view.Capture, Config.FacesDetectionInterval);
             _detectEmotionsTimer.Start();
+            _gameRoundTimer.Start();
         }
 
         private void HighlightFace(BitmapBounds face)
@@ -57,29 +69,37 @@ namespace EmotionsGame
         {
             try
             {
-                using (SoftwareBitmap frame = await _capture.CaptureFrame())
+                if (_isGameFinished)
                 {
-                    using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
+                    return;
+                }
+
+                SoftwareBitmap frame = await _capture.CaptureFrame();
+                using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
+                {
+                    BitmapEncoder encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, stream);
+                    encoder.SetSoftwareBitmap(frame);
+                    await encoder.FlushAsync();
+
+                    stream.Seek(0L);
+                    Emotion[] emotions = await _emotionService.RecognizeAsync(stream.AsStream());
+                    List<Emotion> sortedEmotions = emotions.OrderBy(i => i.FaceRectangle.Left).ToList();
+
+                    Emotion p1Emotion = sortedEmotions.Count > 0 ? emotions[0] : null;
+                    Emotion p2Emotion = sortedEmotions.Count > 1 ? emotions[1] : null;
+
+                    if (p1Emotion != null)
                     {
-                        BitmapEncoder encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, stream);
-                        encoder.SetSoftwareBitmap(frame);
-                        await encoder.FlushAsync();
+                        PlayerResult p1Result = new PlayerResult(frame, p1Emotion.FaceRectangle, _trackedEmotion, GetScore(p1Emotion));
+                        _view.Player1Score.Text = p1Result.Score.ToString();
+                        UpdateHighScore(p1Result);
+                    }
 
-                        stream.Seek(0L);
-                        Emotion[] emotions = await _emotionService.RecognizeAsync(stream.AsStream());
-                        //foreach (Emotion e in emotions)
-                        //{
-                        //}
-
-                        if (emotions.Length > 0)
-                        {
-                            _view.Player1Score.Text = emotions[0].Scores.Happiness.ToString();
-                        }
-
-                        if (emotions.Length > 1)
-                        {
-                            _view.Player2Score.Text = emotions[1].Scores.Happiness.ToString();
-                        }
+                    if (p2Emotion != null)
+                    {
+                        PlayerResult p2Result = new PlayerResult(frame, p2Emotion.FaceRectangle, _trackedEmotion, GetScore(p2Emotion));
+                        _view.Player2Score.Text = p2Result.Score.ToString();
+                        UpdateHighScore(p2Result);
                     }
                 }
             }
@@ -88,14 +108,45 @@ namespace EmotionsGame
                 // TODO
             }
         }
+        private float GetScore(Emotion emotion)
+        {
+            switch (_trackedEmotion)
+            {
+                case EmotionVariants.Anger:
+                    return emotion.Scores.Anger;
+                case EmotionVariants.Contempt:
+                    return emotion.Scores.Contempt;
+                case EmotionVariants.Disgust:
+                    return emotion.Scores.Disgust;
+                case EmotionVariants.Fear:
+                    return emotion.Scores.Fear;
+                case EmotionVariants.Happiness:
+                    return emotion.Scores.Happiness;
+                case EmotionVariants.Neutral:
+                    return emotion.Scores.Neutral;
+                case EmotionVariants.Sadness:
+                    return emotion.Scores.Sadness;
+                case EmotionVariants.Surprise:
+                    return emotion.Scores.Surprise;
+                default:
+                    return 0;
+            }
+        }
+
+        private void UpdateHighScore(PlayerResult result)
+        {
+            if (_highScore == null || _highScore < result)
+            {
+                _highScore = result;
+            }
+        }
 
         private async void OnCaptureFacesDetected(IReadOnlyCollection<BitmapBounds> faces)
         {
-            _detectedFaces = faces;
             await _view.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
             {
                 _view.Canvas.Children.Clear();
-                foreach (BitmapBounds face in _detectedFaces)
+                foreach (BitmapBounds face in faces)
                 {
                     HighlightFace(face);
                 }
@@ -103,21 +154,34 @@ namespace EmotionsGame
         }
         private async void OnDetectEmotionsTimerTick(object sender, object e)
         {
-            if (_detectedFaces == null || _detectedFaces.Count == 0)
-            {
-                return;
-            }
-
             _detectEmotionsTimer.Stop();
             await DetectEmotions();
-            _detectEmotionsTimer.Start();
+
+            if (!_isGameFinished)
+            {
+                _detectEmotionsTimer.Start();
+            }
+        }
+        private void OnGameRoundTimerTick(object sender, object e)
+        {
+            _gameRoundTimer.Stop();
+            _detectEmotionsTimer.Stop();
+            _isGameFinished = true;
+
+            _view.Capture.Source = null;
+            _capture.Dispose();
+
+            GameFinished?.Invoke(_highScore);
         }
 
-        private IReadOnlyCollection<BitmapBounds> _detectedFaces;
+        private bool _isGameFinished;
+        private PlayerResult _highScore;
+        private EmotionVariants _trackedEmotion;
         private readonly GameView _view;
         private readonly VideoCapture _capture;
         private readonly DispatcherTimer _detectEmotionsTimer;
+        private readonly DispatcherTimer _gameRoundTimer;
         private readonly EmotionServiceClient _emotionService;
-        private readonly SolidColorBrush _faceRectangleBrush = new SolidColorBrush(Color.FromArgb(128, 255, 255, 255));
+        private readonly SolidColorBrush _faceRectangleBrush = new SolidColorBrush(Color.FromArgb(128, 255, 255, 0));
     }
 }
