@@ -17,6 +17,10 @@ namespace EmotionsGame
 
             Frame.Navigate(typeof(GamePage), options);
         }
+        private void HighScoresButtonOnClick(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(HighScoresPage));
+        }
 
         private void AngerChecked(object sender, RoutedEventArgs e)
         {

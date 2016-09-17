@@ -38,7 +38,7 @@ namespace EmotionsGame
         }
         private async Task SaveWinner(WriteableBitmap photo, EmotionVariants emotion, float score)
         {
-            string filename = $"{DateTime.Now.ToString("dd.MM.yyyy_HH.mm.ss")}-{emotion.ToString()}-{score.ToString()}";
+            string filename = $"{DateTime.Now.ToString("dd.MM.yyyy_HH.mm.ss")}-{emotion.ToString()}-{score.ToString()}.jpeg";
 
             StorageFolder folder = await KnownFolders.PicturesLibrary.CreateFolderAsync(Config.ResultsFolder, CreationCollisionOption.OpenIfExists);
             StorageFile file = await folder.CreateFileAsync(filename);
