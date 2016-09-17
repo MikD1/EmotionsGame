@@ -28,7 +28,7 @@
             </TextBlock>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Width="130" Height="40" BorderBrush="WhiteSmoke">
+                <Button Width="130" Height="40" BorderBrush="WhiteSmoke" Click="ButtonInfoOnClick">
                     <TextBlock Text="Info" FontSize="20" Foreground="WhiteSmoke"/>
                 </Button>
                 <Button Width="130" Height="40" BorderBrush="WhiteSmoke" Click="ButtonNextOnClick"

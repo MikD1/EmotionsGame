@@ -29,9 +29,9 @@ namespace EmotionsGame
             _game.Run(options.EmotionVariant);
         }
 
-        private void OnGameFinished(PlayerResult winner)
+        private void OnGameFinished(GameResult result)
         {
-            Frame.Navigate(typeof(FinishPage), winner);
+            Frame.Navigate(typeof(FinishPage), result);
         }
 
         private Game _game;

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI.Xaml;
@@ -17,17 +16,16 @@ namespace EmotionsGame
             InitializeComponent();
         }
 
-        protected override void OnNavigatedTo(NavigationEventArgs e)
+        protected override async void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
 
-            PlayerResult winner = e.Parameter as PlayerResult;
-            if (winner != null)
-            {
-                WriteableBitmap photo = CropWinnerFrame(winner);
-                ShowWinner(photo, winner.Emotion, winner.Score);
-                SaveWinner(photo, winner.Emotion, winner.Score);
-            }
+            _gameResult = (GameResult)e.Parameter;
+            PlayerResult winner = _gameResult.GetWinner();
+
+            WriteableBitmap photo = PlayerPhotoHelper.CropFrame(winner);
+            ShowWinner(photo, _gameResult.Emotion, winner.Score);
+            await SaveWinner(photo, _gameResult.Emotion, winner.Score);
         }
 
         private void ShowWinner(WriteableBitmap photo, EmotionVariants emotion, float score)
@@ -49,32 +47,18 @@ namespace EmotionsGame
             }
         }
 
-        private WriteableBitmap CropWinnerFrame(PlayerResult winner)
+        private void ButtonInfoOnClick(object sender, RoutedEventArgs e)
         {
-            Rect rect = new Rect();
-            rect.X = Math.Max(winner.FaceRectangle.Left - 100, 0);
-            rect.Y = Math.Max(winner.FaceRectangle.Top - 100, 0);
-            rect.Width = winner.FaceRectangle.Width + 200;
-            rect.Height = winner.FaceRectangle.Height + 200;
-
-            if (rect.X + rect.Width > winner.Frame.PixelWidth)
+            if (_gameResult != null)
             {
-                rect.Width = winner.Frame.PixelWidth - rect.X;
+                Frame.Navigate(typeof(FinishDetailsPage), _gameResult);
             }
-
-            if (rect.Y + rect.Height > winner.Frame.PixelHeight)
-            {
-                rect.Height = winner.Frame.PixelHeight - rect.Y;
-            }
-
-            WriteableBitmap bitmap = new WriteableBitmap(winner.Frame.PixelWidth, winner.Frame.PixelHeight);
-            winner.Frame.CopyToBuffer(bitmap.PixelBuffer);
-            return bitmap.Crop(rect);
         }
-
         private void ButtonNextOnClick(object sender, RoutedEventArgs e)
         {
             Frame.Navigate(typeof(StartPage));
         }
+
+        private GameResult _gameResult;
     }
 }

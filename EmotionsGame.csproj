@@ -96,13 +96,16 @@
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
     <Compile Include="Config.cs" />
-    <Compile Include="EmotionVariants.cs" />
+    <Compile Include="FinishDetailsPage.xaml.cs">
+      <DependentUpon>FinishDetailsPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Game\EmotionVariants.cs" />
     <Compile Include="FinishPage.xaml.cs">
       <DependentUpon>FinishPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Game.cs" />
-    <Compile Include="GameOptions.cs" />
-    <Compile Include="GameView.cs" />
+    <Compile Include="Game\Game.cs" />
+    <Compile Include="Game\GameOptions.cs" />
+    <Compile Include="Game\GameView.cs" />
     <Compile Include="GamePage.xaml.cs">
       <DependentUpon>GamePage.xaml</DependentUpon>
     </Compile>
@@ -111,12 +114,14 @@
       <DependentUpon>HighScoresPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="HighScoresPageViewModel.cs" />
-    <Compile Include="PlayerResult.cs" />
+    <Compile Include="Game\GameResult.cs" />
+    <Compile Include="Game\PlayerResult.cs" />
+    <Compile Include="PlayerPhotoHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StartPage.xaml.cs">
       <DependentUpon>StartPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="VideoCapture.cs" />
+    <Compile Include="Game\VideoCapture.cs" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
@@ -140,6 +145,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Page Include="FinishDetailsPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="FinishPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

@@ -3,6 +3,7 @@ using Microsoft.ProjectOxford.Emotion.Contract;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
@@ -10,9 +11,9 @@ using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
+using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Shapes;
-using System.Linq;
 
 namespace EmotionsGame
 {
@@ -36,13 +37,12 @@ namespace EmotionsGame
             _emotionService = new EmotionServiceClient(Config.EmotionServiceKey);
         }
 
-        public event Action<PlayerResult> GameFinished;
+        public event Action<GameResult> GameFinished;
 
         public async void Run(EmotionVariants trackedEmotion)
         {
-            _trackedEmotion = trackedEmotion;
             _isGameFinished = false;
-            _highScore = null;
+            _gameResult = new GameResult(trackedEmotion);
 
             await _capture.Initialize(_view.Capture, Config.FacesDetectionInterval);
             _detectEmotionsTimer.Start();
@@ -88,19 +88,8 @@ namespace EmotionsGame
                     Emotion p1Emotion = sortedEmotions.Count > 0 ? emotions[0] : null;
                     Emotion p2Emotion = sortedEmotions.Count > 1 ? emotions[1] : null;
 
-                    if (p1Emotion != null)
-                    {
-                        PlayerResult p1Result = new PlayerResult(frame, p1Emotion.FaceRectangle, _trackedEmotion, GetScore(p1Emotion));
-                        _view.Player1Score.Text = p1Result.Score.ToString();
-                        UpdateHighScore(p1Result);
-                    }
-
-                    if (p2Emotion != null)
-                    {
-                        PlayerResult p2Result = new PlayerResult(frame, p2Emotion.FaceRectangle, _trackedEmotion, GetScore(p2Emotion));
-                        _view.Player2Score.Text = p2Result.Score.ToString();
-                        UpdateHighScore(p2Result);
-                    }
+                    _gameResult.Player1 = UpdatePlayerResult(p1Emotion, frame, _view.Player1Score, _gameResult.Player1);
+                    _gameResult.Player2 = UpdatePlayerResult(p2Emotion, frame, _view.Player2Score, _gameResult.Player2);
                 }
             }
             catch (Exception ex)
@@ -108,9 +97,29 @@ namespace EmotionsGame
                 // TODO
             }
         }
+        private PlayerResult UpdatePlayerResult(Emotion emotion, SoftwareBitmap frame, TextBlock playerScoreView, PlayerResult previousResult)
+        {
+            if (emotion == null)
+            {
+                return previousResult;
+            }
+
+            PlayerResult result = new PlayerResult(frame, emotion.FaceRectangle, GetScore(emotion));
+            result.AddScore(EmotionVariants.Anger, emotion.Scores.Anger);
+            result.AddScore(EmotionVariants.Contempt, emotion.Scores.Contempt);
+            result.AddScore(EmotionVariants.Disgust, emotion.Scores.Disgust);
+            result.AddScore(EmotionVariants.Fear, emotion.Scores.Fear);
+            result.AddScore(EmotionVariants.Happiness, emotion.Scores.Happiness);
+            result.AddScore(EmotionVariants.Neutral, emotion.Scores.Neutral);
+            result.AddScore(EmotionVariants.Sadness, emotion.Scores.Sadness);
+            result.AddScore(EmotionVariants.Surprise, emotion.Scores.Surprise);
+
+            playerScoreView.Text = result.Score.ToString();
+            return (previousResult == null || result > previousResult) ? result : previousResult;
+        }
         private float GetScore(Emotion emotion)
         {
-            switch (_trackedEmotion)
+            switch (_gameResult.Emotion)
             {
                 case EmotionVariants.Anger:
                     return emotion.Scores.Anger;
@@ -130,14 +139,6 @@ namespace EmotionsGame
                     return emotion.Scores.Surprise;
                 default:
                     return 0;
-            }
-        }
-
-        private void UpdateHighScore(PlayerResult result)
-        {
-            if (_highScore == null || _highScore < result)
-            {
-                _highScore = result;
             }
         }
 
@@ -171,12 +172,11 @@ namespace EmotionsGame
             _view.Capture.Source = null;
             _capture.Dispose();
 
-            GameFinished?.Invoke(_highScore);
+            GameFinished?.Invoke(_gameResult);
         }
 
         private bool _isGameFinished;
-        private PlayerResult _highScore;
-        private EmotionVariants _trackedEmotion;
+        private GameResult _gameResult;
         private readonly GameView _view;
         private readonly VideoCapture _capture;
         private readonly DispatcherTimer _detectEmotionsTimer;
